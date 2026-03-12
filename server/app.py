@@ -17,35 +17,73 @@ db.init_app(app)
 api = Api(app)
 
 
+# Resource for /plants
 class Plants(Resource):
 
     def get(self):
+        """Return all plants as a list of dicts"""
         plants = [plant.to_dict() for plant in Plant.query.all()]
         return make_response(jsonify(plants), 200)
 
     def post(self):
+        """Create a new plant"""
         data = request.get_json()
 
         new_plant = Plant(
             name=data['name'],
             image=data['image'],
             price=data['price'],
+            is_in_stock=data.get('is_in_stock', True)  # default True if not provided
         )
 
         db.session.add(new_plant)
         db.session.commit()
 
-        return make_response(new_plant.to_dict(), 201)
+        return make_response(jsonify(new_plant.to_dict()), 201)
 
 
 api.add_resource(Plants, '/plants')
 
 
+# Resource for /plants/<int:id>
 class PlantByID(Resource):
 
     def get(self, id):
-        plant = Plant.query.filter_by(id=id).first().to_dict()
-        return make_response(jsonify(plant), 200)
+        """Return one plant by ID"""
+        plant = Plant.query.get(id)
+
+        if not plant:
+            return make_response({"error": "Plant not found"}, 404)
+
+        return make_response(jsonify(plant.to_dict()), 200)
+
+    def patch(self, id):
+        """Update a plant's attributes"""
+        plant = Plant.query.get(id)
+
+        if not plant:
+            return make_response({"error": "Plant not found"}, 404)
+
+        data = request.get_json()
+
+        if "is_in_stock" in data:
+            plant.is_in_stock = data["is_in_stock"]
+
+        db.session.commit()
+
+        return make_response(jsonify(plant.to_dict()), 200)
+
+    def delete(self, id):
+        """Delete a plant by ID"""
+        plant = Plant.query.get(id)
+
+        if not plant:
+            return make_response({"error": "Plant not found"}, 404)
+
+        db.session.delete(plant)
+        db.session.commit()
+
+        return make_response('', 204)
 
 
 api.add_resource(PlantByID, '/plants/<int:id>')
